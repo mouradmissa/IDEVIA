@@ -180,14 +180,16 @@ export default function App() {
           </em>
         </button>
         <button className="new" onClick={() => { setProfile(false); setData(null); setIdea(""); setStage("data"); }}>＋ Nouveau projet</button>
-        <h5>Historique</h5>
-        {history.length === 0 && <p className="empty">Aucun projet pour le moment.</p>}
-        {history.map((h, i) => (
-          <div className={"item" + (data === h.data ? " cur" : "")} key={h.at || i}>
-            <button className="link" onClick={() => open(h)} title={h.idea}>{h.idea}</button>
-            <button className="x" onClick={() => remove(i)} aria-label="Supprimer">×</button>
-          </div>
-        ))}
+        <div className="hist">
+          <h5>Historique</h5>
+          {history.length === 0 && <p className="empty">Aucun projet pour le moment.</p>}
+          {history.map((h, i) => (
+            <div className={"item" + (data === h.data ? " cur" : "")} key={h.at || i}>
+              <button className="link" onClick={() => open(h)} title={h.idea}>{h.idea}</button>
+              <button className="x" onClick={() => remove(i)} aria-label="Supprimer">×</button>
+            </div>
+          ))}
+        </div>
         <div className="foot">
           <button className={"profilebtn" + (profile ? " on" : "")} onClick={() => setProfile((open) => !open)}>
             Profil{!keysReady && <em>clé</em>}

@@ -55,6 +55,7 @@ h1,h2,.logo b{font-family:var(--display)}
 .new{
   background:linear-gradient(90deg,var(--ac),var(--ac2));color:#041018;border:0;border-radius:12px;padding:11px;font-weight:700;
 }
+.hist{display:flex;flex-direction:column;gap:2px;min-height:0}
 .side h5{margin:14px 0 2px;color:var(--mut);font-size:11px;letter-spacing:.16em;text-transform:uppercase}
 .empty{color:var(--mut);font-size:13px}
 .item{display:flex;align-items:center;border-radius:10px}
@@ -268,7 +269,7 @@ form{display:flex;flex-direction:column;gap:10px}
 @media (max-width:760px){
   .app{grid-template-columns:1fr}
   .side{position:static;height:auto;border-right:0;border-bottom:1px solid var(--bd)}
-  .side h5,.empty,.item{display:none}
+  .hist{max-height:min(42vh,280px);overflow:auto}
   .foot{flex-direction:row;flex-wrap:wrap}
   .hero-stage{height:150px}
   .stages{grid-template-columns:1fr}
