@@ -1,11 +1,17 @@
-import hashlib, json, re, secrets, threading, time
+import hashlib, json, os, re, secrets, threading, time
 from pathlib import Path
+from dotenv import load_dotenv
 
-DATA = Path(__file__).resolve().parent / "data"
+load_dotenv(Path(__file__).resolve().parent / ".env")
+
+DATA_DIR = os.getenv("DATA_DIR", "data").strip() or "data"
+_data_path = Path(DATA_DIR)
+DATA = _data_path.resolve() if _data_path.is_absolute() else (Path(__file__).resolve().parent / _data_path).resolve()
+DATA.mkdir(parents=True, exist_ok=True)
 USERS_PATH = DATA / "users.json"
 SESSIONS_PATH = DATA / "sessions.json"
 CHATS_PATH = DATA / "chats.json"
-LOCK = threading.Lock()
+LOCK = threading.RLock()
 PBKDF2_ROUNDS = 200_000
 SESSION_TTL = 60 * 60 * 24 * 14
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -18,18 +24,25 @@ class AccountError(Exception):
 
 
 def _load(path: Path) -> dict:
-    if not path.exists():
-        return {}
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return {}
-    return data if isinstance(data, dict) else {}
+    with LOCK:
+        if not path.exists():
+            return {}
+        raw = path.read_text(encoding="utf-8").strip()
+        if not raw:
+            return {}
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            return {}
+        return data if isinstance(data, dict) else {}
 
 
 def _save(path: Path, data: dict):
-    DATA.mkdir(exist_ok=True)
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    with LOCK:
+        DATA.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_name(f".{path.name}.tmp")
+        tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.replace(tmp, path)
 
 
 def hash_password(password: str) -> str:

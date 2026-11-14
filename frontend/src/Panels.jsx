@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { createGamma, createV0, downloadGamma, fetchSlide, gammaStatus, improveGamma, prepareSlides, v0Status } from "./api";
+import { apiBase, createGamma, createV0, downloadGamma, fetchSlide, gammaStatus, improveGamma, prepareSlides, v0Status } from "./api";
 import { downloadBlob } from "./export";
 
 const Grid = ({ children }) => <div className="grid">{children}</div>;
@@ -22,7 +22,7 @@ Style : interface claire, cartes, navigation simple, états vides, boutons d'act
 Génère l'interface complète immédiatement, sans question, sans choix et sans demande de confirmation.`;
 }
 
-const previewOrigin = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
+const previewOrigin = apiBase();
 
 export const V0Prompt = ({ idea, d, onChat, onPrompt, launch = 0, launched, onBusy }) => {
   const generated = v0Text(idea, d);

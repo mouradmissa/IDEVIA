@@ -1,4 +1,8 @@
-const BASE = import.meta.env.VITE_API_URL || "";
+export function apiBase() {
+  return String(import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+}
+
+const BASE = apiBase();
 const TOKEN = "mindmap-ai-token";
 
 export function getToken() {

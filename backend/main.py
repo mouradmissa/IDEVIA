@@ -11,15 +11,21 @@ from google.genai import errors, types
 from pydantic import BaseModel, Field
 
 load_dotenv()
+
+def allowed_origins() -> list[str]:
+    raw = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173")
+    origins = [item.strip().rstrip("/") for item in raw.split(",") if item.strip()]
+    return origins or ["http://localhost:5173"]
+
 app = FastAPI(title="Idevia")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(","),
+    allow_origins=allowed_origins(),
     allow_methods=["*"], allow_headers=["*"],
 )
 ENV_PATH = Path(__file__).resolve().parent / ".env"
 ENV_LOCK = threading.Lock()
-RESERVED = {"GEMINI_API_KEY", "V0_API_KEY", "GAMMA_API_KEY", "MODEL", "ALLOWED_ORIGINS"}
+RESERVED = {"GEMINI_API_KEY", "V0_API_KEY", "GAMMA_API_KEY", "MODEL", "ALLOWED_ORIGINS", "DATA_DIR", "GOOGLE_CLIENT_ID"}
 BLOCKED = {
     "PATH", "PATHEXT", "SYSTEMROOT", "WINDIR", "COMSPEC", "TEMP", "TMP",
     "USERPROFILE", "HOME", "PYTHONPATH", "VIRTUAL_ENV", "PROMPT",
@@ -125,8 +131,12 @@ def parse_json(text: str) -> dict:
     start, end = text.find("{"), text.rfind("}")
     return json.loads(text[start:end + 1])
 
-@app.get("/api/health")
+@app.get("/health")
 def health():
+    return {"status": "ok"}
+
+@app.get("/api/health")
+def api_health():
     return {
         "ok": True, "model": MODEL, "fallbacks": FALLBACKS,
         "provider": "gemini", "key_configured": bool(API_KEY),
@@ -583,7 +593,7 @@ def rewrite_preview(payload: bytes, content_type: str, chat_id: str) -> bytes:
 @app.middleware("http")
 async def route_preview_assets(request: Request, call_next):
     path = request.url.path
-    if path.startswith("/preview/") or path.startswith("/api/") or path.startswith("/docs"):
+    if path == "/health" or path.startswith("/preview/") or path.startswith("/api/") or path.startswith("/docs"):
         return await call_next(request)
     match = re.search(r"/preview/([A-Za-z0-9_-]+)", request.headers.get("referer") or "")
     if match:
