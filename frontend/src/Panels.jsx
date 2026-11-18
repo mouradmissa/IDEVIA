@@ -4,13 +4,56 @@ import { downloadBlob } from "./export";
 
 const Grid = ({ children }) => <div className="grid">{children}</div>;
 
-export function v0Text(idea, d) {
-  if (d.v0Prompt) return d.v0Prompt;
+const PALETTES = [
+  { id: "ocean", name: "Océan", mode: "sombre", colors: ["#071525", "#14324E", "#20D0F0", "#E8F7FF"] },
+  { id: "violet", name: "Violet", mode: "sombre", colors: ["#140C28", "#3B1D78", "#A78BFA", "#F6F1FF"] },
+  { id: "foret", name: "Forêt", mode: "sombre", colors: ["#0E1C14", "#1C4A32", "#5EE0A0", "#F2FFF7"] },
+  { id: "soleil", name: "Soleil", mode: "sombre", colors: ["#241208", "#8A3410", "#FF8A3D", "#FFF3E8"] },
+  { id: "rose", name: "Rose", mode: "sombre", colors: ["#240814", "#7A1E45", "#FF6FA5", "#FFF0F6"] },
+  { id: "encre", name: "Encre", mode: "sombre", colors: ["#101114", "#24262C", "#F4F4F5", "#FFFFFF"] },
+  { id: "neon", name: "Néon", mode: "sombre", colors: ["#07080D", "#141824", "#00F0FF", "#FF2BD6"] },
+  { id: "aurore", name: "Aurore", mode: "sombre", colors: ["#100818", "#5B2A86", "#22D3EE", "#F472B6"] },
+  { id: "papier", name: "Papier", mode: "clair", colors: ["#F7F5F2", "#FFFFFF", "#C2410C", "#1F2933"] },
+  { id: "lagon", name: "Lagon", mode: "clair", colors: ["#F3FBFF", "#FFFFFF", "#0E7490", "#134E4A"] },
+  { id: "lilas", name: "Lilas", mode: "clair", colors: ["#F6F3FF", "#FFFFFF", "#6D28D9", "#3B0764"] },
+  { id: "sable", name: "Sable", mode: "clair", colors: ["#FBF6EE", "#FFFCF7", "#8A5A2B", "#3F2A1A"] },
+];
+
+const DESIGN_STYLES = [
+  { id: "glass", name: "Glassmorphism", aspect: "Panneaux translucides, flou, bordure fine, fond coloré", fit: "Tableaux de bord, SaaS, pages d’accueil", care: "Contraste du texte, performance sur mobile", directive: "Cartes translucides avec flou d’arrière-plan, bordure fine semi-transparente et fond en halos colorés. Réduis le flou sur mobile et garde un texte très contrasté." },
+  { id: "liquid", name: "Liquid Glass", aspect: "Verre plus épais qui se déforme et réfracte la lumière (style récent d’Apple)", fit: "Interfaces très modernes, applications", care: "Lourd à produire, lisibilité", directive: "Verre épais, reflets spéculaires, bords lumineux et grands rayons. Les textes restent nets, en dehors des zones de flou." },
+  { id: "neu", name: "Neumorphism", aspect: "Éléments « moulés » dans le fond, ombres claires et sombres", fit: "Applications simples, contrôles (boutons, curseurs)", care: "Très faible contraste, peu accessible", directive: "Boutons et cartes de la même teinte que le fond, ombre claire en haut à gauche et ombre sombre en bas à droite. Renforce le contraste des libellés." },
+  { id: "clay", name: "Claymorphism", aspect: "Formes grosses, gonflées et arrondies, comme de la pâte à modeler 3D", fit: "Applications ludiques, éducation, enfants", care: "Peut paraître peu sérieux", directive: "Très grands rayons, volumes gonflés, ombres colorées douces et intérieur un peu plus clair. Boutons comme des pastilles de pâte à modeler." },
+  { id: "brutal", name: "Neo-brutalisme", aspect: "Bordures noires épaisses, ombres dures, couleurs franches", fit: "Marques créatives, startups, portfolios", care: "Style très marqué, pas pour tous les secteurs", directive: "Bordure noire de 3 px, ombre dure décalée, couleurs plates saturées, coins peu arrondis et typographie grasse." },
+  { id: "aurora", name: "Aurora / Mesh gradient", aspect: "Dégradés doux et flous, façon aurore boréale", fit: "Landing pages, hero, applications d’IA", care: "Peut devenir chargé", directive: "Fond en dégradé maillé et flou. Cartes plus calmes par-dessus, hero large, sans empiler les dégradés dans chaque bloc." },
+  { id: "minimal", name: "Minimalisme", aspect: "Beaucoup de blanc, typographie nette, peu de couleurs", fit: "Sites professionnels, documentation, blogs", care: "Risque de paraître froid", directive: "Beaucoup d’espace, typographie nette, une seule couleur d’accent, presque pas d’ombres ni de décor." },
+  { id: "darkpro", name: "Sombre pro", aspect: "Noir et gris, un seul accent, surfaces plates", fit: "Outils pour développeurs, SaaS techniques", care: "Peut manquer de chaleur", directive: "Fond noir et gris, surfaces plates, un seul accent réservé aux actions. Aucun dégradé décoratif." },
+  { id: "bento", name: "Bento grid", aspect: "Blocs de tailles différentes, comme une boîte repas", fit: "Pages produit, tableaux de bord", care: "Demande une bonne hiérarchie", directive: "Grille de tuiles de tailles différentes. Un bloc principal domine, les autres restent secondaires et lisibles." },
+  { id: "cyber", name: "Néon / Cyberpunk", aspect: "Couleurs fluo sur fond noir, lueurs", fit: "Jeux, musique, technologie", care: "Fatigue visuelle, accessibilité", directive: "Fond presque noir, accents fluo et lueurs. Le fluo est limité aux titres et aux actions, le texte courant reste gris clair." },
+  { id: "y2k", name: "Rétro / Y2K", aspect: "Dégradés métalliques, formes années 2000, pixels", fit: "Marques de mode, communautés", care: "Très daté, à doser", directive: "Dégradés argentés, bulles et quelques détails pixel. La navigation reste simple malgré les effets." },
+  { id: "material", name: "Material / Flat", aspect: "Aplats de couleur, ombres légères, composants standardisés", fit: "Applications mobiles et web classiques", care: "Peut paraître générique", directive: "Aplats, ombre légère, boutons contenus et champs bordés. Composants familiers, hiérarchie claire." },
+  { id: "skeu", name: "Skeuomorphisme", aspect: "Imitation du réel (cuir, métal, relief)", fit: "Applications de niche (musique, instruments)", care: "Lourd et vieillissant", directive: "Quelques surfaces clés évoquent le métal, le cuir ou le bois, avec des boutons en relief. Le reste de l’interface reste simple." },
+];
+
+function defaultUi(d) {
+  return { name: d.mindmap?.center || "Projet", palette: "ocean", style: "glass" };
+}
+
+export function v0Text(idea, d, design) {
+  if (!design && d.v0Prompt) return d.v0Prompt;
+  const ui = { ...defaultUi(d), ...(design || d.uiDesign || {}) };
+  const palette = PALETTES.find((p) => p.id === ui.palette) || PALETTES[0];
+  const style = DESIGN_STYLES.find((s) => s.id === ui.style) || DESIGN_STYLES[0];
+  const name = String(ui.name || "").trim() || d.mindmap?.center || "Projet";
+  const [bg, surface, accent, ink] = palette.colors;
   const branches = (d.mindmap?.branches || []).map((b) => `- ${b.name} : ${(b.children || []).join(", ")}`).join("\n");
   const stories = (d.stories || []).map((s, i) => `US${i + 1}. En tant que ${s.actor}, je veux ${s.want} afin de ${s.so}.`).join("\n");
   return `Crée une application web React, responsive, en français.
-Produit : ${d.mindmap?.center || "Projet"}
+Nom du site : ${name}
+Produit : ${d.mindmap?.center || name}
 Idée : ${idea}
+
+Le nom « ${name} » apparaît dans l’en-tête, le titre de la page et le hero.
 
 Écrans et navigation :
 ${branches}
@@ -18,23 +61,65 @@ ${branches}
 User stories à couvrir :
 ${stories}
 
-Style : interface claire, cartes, navigation simple, états vides, boutons d'action visibles.
+Direction artistique :
+- Style : ${style.name}. ${style.aspect}
+- Réalisation : ${style.directive}
+- Attention : ${style.care}
+- Palette « ${palette.name} » (thème ${palette.mode}) : fond ${bg}, surfaces ${surface}, accent ${accent}, texte ${ink}.
+- Utilise exactement ces couleurs. Le texte reste lisible sur chaque fond.
+
 Génère l'interface complète immédiatement, sans question, sans choix et sans demande de confirmation.`;
 }
 
 const previewOrigin = apiBase();
 
-export const V0Prompt = ({ idea, d, onChat, onPrompt, launch = 0, launched, onBusy }) => {
-  const generated = v0Text(idea, d);
-  const source = v0Text(idea, { ...d, v0Prompt: "" });
-  const [text, setText] = useState(generated);
+export const V0Prompt = ({ idea, d, onChat, onPrompt, onDesign, launch = 0, launched, onBusy }) => {
+  const initialDesign = { ...defaultUi(d), ...(d.uiDesign || {}) };
+  const initialPrompt = v0Text(idea, d, initialDesign);
+  const [design, setDesign] = useState(initialDesign);
+  const [follow, setFollow] = useState(() => !d.v0Prompt || d.v0Prompt === initialPrompt);
+  const [text, setText] = useState(() => d.v0Prompt || initialPrompt);
+  const [fresh, setFresh] = useState(false);
+  const [showPrompt, setShowPrompt] = useState(!d.v0ChatId);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [link, setLink] = useState(d.v0ChatId ? { id: d.v0ChatId, messageId: d.v0MessageId, pending: true, ready: false } : null);
   const onChatRef = useRef(onChat);
+  const onPromptRef = useRef(onPrompt);
+  const onDesignRef = useRef(onDesign);
+  const savedPrompt = useRef(d.v0Prompt);
+  const announce = useRef(false);
+  const persistDesign = useRef(false);
   onChatRef.current = onChat;
-  useEffect(() => { setText(generated); }, [generated]);
+  onPromptRef.current = onPrompt;
+  onDesignRef.current = onDesign;
+  savedPrompt.current = d.v0Prompt;
+  const composed = v0Text(idea, d, design);
+  const palette = PALETTES.find((p) => p.id === design.palette) || PALETTES[0];
+  const style = DESIGN_STYLES.find((s) => s.id === design.style) || DESIGN_STYLES[0];
+  const apply = (partial, withNotice = false) => {
+    setFollow(true);
+    setShowPrompt(true);
+    if (withNotice) announce.current = true;
+    persistDesign.current = true;
+    setDesign((cur) => ({ ...cur, ...partial }));
+  };
+  useEffect(() => {
+    if (!persistDesign.current) return;
+    onDesignRef.current?.(design);
+  }, [design]);
+  useEffect(() => {
+    if (!follow) return undefined;
+    setText(composed);
+    if (composed !== savedPrompt.current) onPromptRef.current?.(composed);
+    if (!announce.current) return undefined;
+    announce.current = false;
+    setShowPrompt(true);
+    setFresh(true);
+    const timer = setTimeout(() => setFresh(false), 1400);
+    return () => clearTimeout(timer);
+  }, [composed, follow]);
   useEffect(() => {
     setLink(d.v0ChatId ? { id: d.v0ChatId, messageId: d.v0MessageId, pending: true, ready: false } : null);
   }, [d.v0ChatId, d.v0MessageId]);
@@ -84,13 +169,65 @@ export const V0Prompt = ({ idea, d, onChat, onPrompt, launch = 0, launched, onBu
   }, [launch]);
   const frame = link?.id ? `${previewOrigin}/preview/${encodeURIComponent(link.id)}/` : "";
   const waiting = Boolean(frame && (link.pending || link.ready === false));
+  const reset = () => {
+    announce.current = true;
+    persistDesign.current = true;
+    setFollow(true);
+    setDesign(defaultUi(d));
+  };
   return (
     <div>
+      <form className="design-form" onSubmit={(e) => e.preventDefault()}>
+        <label className="design-label">
+          Nom du site
+          <input value={design.name} maxLength={80} placeholder="Nom affiché dans l’en-tête"
+            onChange={(e) => apply({ name: e.target.value })} />
+        </label>
+        <div className="swatch-preview" style={{ background: palette.colors[0], color: palette.colors[3], borderColor: palette.colors[2] }}>
+          <strong style={{ color: palette.colors[2] }}>{design.name.trim() || "Sans nom"}</strong>
+          <span>{style.name} · {palette.name}</span>
+        </div>
+        <div>
+          <h3>Palette de couleurs</h3>
+          <div className="palettes" role="listbox" aria-label="Palette de couleurs">
+            {PALETTES.map((item) => (
+              <button type="button" key={item.id} role="option" aria-selected={design.palette === item.id}
+                className={design.palette === item.id ? "palette on" : "palette"}
+                onClick={() => apply({ palette: item.id }, true)}>
+                <span className="dots" aria-hidden="true">
+                  {item.colors.map((color) => <i key={color} style={{ background: color }} />)}
+                </span>
+                {item.name}
+                <em>{item.mode}</em>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <h3>Style de l’interface</h3>
+          <div className="looks" role="listbox" aria-label="Style de l’interface">
+            {DESIGN_STYLES.map((item) => (
+              <button type="button" key={item.id} role="option" aria-selected={design.style === item.id}
+                className={design.style === item.id ? "look on" : "look"}
+                title={`${item.fit} — ${item.care}`}
+                onClick={() => apply({ style: item.id }, true)}>
+                <strong>{item.name}</strong>
+                <span>{item.aspect}</span>
+              </button>
+            ))}
+          </div>
+          <p className="look-note">
+            <b>Bien pour.</b> {style.fit}
+            <b>Attention.</b> {style.care}
+          </p>
+        </div>
+      </form>
       <div className="v0actions">
         <button className="go" onClick={send} disabled={busy}>{busy ? "Génération…" : "Générer l’interface"}</button>
         <button onClick={copy}>{copied ? "Copié" : "Copier le prompt"}</button>
-        <button onClick={() => { setText(source); onPrompt?.(source); }}>Réinitialiser</button>
+        <button onClick={reset}>Réinitialiser</button>
       </div>
+      {fresh && <p className="ok">Prompt mis à jour.</p>}
       {error && <p className="err">⚠️ {error}</p>}
       {frame && (
         <div className="v0live">
@@ -100,17 +237,46 @@ export const V0Prompt = ({ idea, d, onChat, onPrompt, launch = 0, launched, onBu
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups" />
         </div>
       )}
-      <details className="v0details" open={!frame}>
-        <summary>Prompt v0 — modifiable</summary>
-        <textarea className="prompt" value={text} rows={8} onChange={(e) => setText(e.target.value)}
+      <details className="v0details" open={showPrompt} onToggle={(e) => setShowPrompt(e.currentTarget.open)}>
+        <summary>Prompt v0 — mis à jour selon tes choix</summary>
+        <textarea className="prompt" value={text} rows={8}
+          onChange={(e) => { setFollow(false); setText(e.target.value); }}
           onBlur={() => onPrompt?.(text)} aria-label="Prompt v0" />
       </details>
     </div>
   );
 };
 
-export function gammaText(idea, d) {
-  if (d.gammaPrompt) return d.gammaPrompt;
+const LOOK_MARK = "\n---\n\nDirection visuelle\n";
+
+function resolveLook(design) {
+  const palette = PALETTES.find((p) => p.id === design?.palette) || PALETTES[0];
+  const style = DESIGN_STYLES.find((s) => s.id === design?.style) || DESIGN_STYLES[0];
+  const [bg, surface, accent, ink] = palette.colors;
+  const block = `- Style : ${style.name}. ${style.aspect}
+- Réalisation : ${style.directive}
+- Attention : ${style.care}
+- Palette « ${palette.name} » (thème ${palette.mode}) : fond ${bg}, surfaces ${surface}, accent ${accent}, texte ${ink}.
+- Applique ce style et ces couleurs sur toutes les cartes. Le texte reste lisible.`;
+  return { palette, style, block };
+}
+
+function freshDeck(d) {
+  const from = d.uiDesign || {};
+  return { palette: from.palette || "ocean", style: from.style || "glass" };
+}
+
+function stripLook(text) {
+  const source = String(text || "");
+  const at = source.lastIndexOf(LOOK_MARK);
+  return (at === -1 ? source : source.slice(0, at)).trim();
+}
+
+function withLook(text, design) {
+  return `${stripLook(text)}${LOOK_MARK}${resolveLook(design).block}`;
+}
+
+function slideBody(idea, d) {
   const center = d.mindmap?.center || "Projet";
   const features = (d.features || []).slice(0, 4).map((f) => `- ${f.name}`).join("\n");
   const actors = (d.actors || []).map((a) => a.name).join(", ");
@@ -161,6 +327,13 @@ Prochaines étapes
 - Livrer le premier sprint`;
 }
 
+export function gammaText(idea, d, design) {
+  if (!design && d.gammaPrompt) return d.gammaPrompt;
+  const slides = slideBody(idea, d);
+  const chosen = design || d.deckDesign;
+  return chosen ? withLook(slides, chosen) : slides;
+}
+
 function embedFromGamma(url) {
   const match = /gamma\.app\/(?:docs|embed|public)\/([^/?#]+)/.exec(url || "");
   return match ? `https://gamma.app/embed/${match[1]}` : "";
@@ -179,21 +352,59 @@ function savedDeck(d) {
   };
 }
 
-export const GammaDeck = ({ idea, d, onPrompt, onDeck }) => {
-  const generated = gammaText(idea, d);
-  const source = gammaText(idea, { ...d, gammaPrompt: "" });
-  const [text, setText] = useState(generated);
+export const GammaDeck = ({ idea, d, onPrompt, onDeck, onDesign }) => {
+  const initialDesign = { ...freshDeck(d), ...(d.deckDesign || {}) };
+  const initialPrompt = gammaText(idea, d, initialDesign);
+  const [design, setDesign] = useState(initialDesign);
+  const [follow, setFollow] = useState(() => !d.gammaPrompt || d.gammaPrompt === initialPrompt);
+  const [text, setText] = useState(() => (d.gammaPrompt ? withLook(d.gammaPrompt, initialDesign) : initialPrompt));
+  const [fresh, setFresh] = useState(false);
+  const [showPrompt, setShowPrompt] = useState(!d.gammaGenerationId && !d.gammaUrl);
   const [note, setNote] = useState("");
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [deck, setDeck] = useState(() => savedDeck(d));
   const [slides, setSlides] = useState([]);
   const [slide, setSlide] = useState(0);
   const slidesRef = useRef([]);
   const onDeckRef = useRef(onDeck);
+  const onPromptRef = useRef(onPrompt);
+  const onDesignRef = useRef(onDesign);
+  const savedPrompt = useRef(d.gammaPrompt);
+  const textRef = useRef(text);
+  const announce = useRef(false);
+  const persistDesign = useRef(false);
+  const editing = useRef(false);
   onDeckRef.current = onDeck;
-  useEffect(() => { setText(generated); }, [generated]);
+  onPromptRef.current = onPrompt;
+  onDesignRef.current = onDesign;
+  savedPrompt.current = d.gammaPrompt;
+  textRef.current = text;
+  const composed = gammaText(idea, d, design);
+  const look = resolveLook(design);
+  const apply = (partial, withNotice = false) => {
+    setShowPrompt(true);
+    if (withNotice) announce.current = true;
+    persistDesign.current = true;
+    setDesign((cur) => ({ ...cur, ...partial }));
+  };
+  useEffect(() => {
+    if (!persistDesign.current) return;
+    onDesignRef.current?.(design);
+  }, [design]);
+  useEffect(() => {
+    if (editing.current) return undefined;
+    const next = follow ? composed : withLook(textRef.current, design);
+    setText(next);
+    if (next !== savedPrompt.current) onPromptRef.current?.(next);
+    if (!announce.current) return undefined;
+    announce.current = false;
+    setFresh(true);
+    const timer = setTimeout(() => setFresh(false), 1400);
+    return () => clearTimeout(timer);
+  }, [composed, design, follow]);
   useEffect(() => () => { slidesRef.current.forEach((url) => URL.revokeObjectURL(url)); }, []);
   useEffect(() => {
     const saved = savedDeck(d);
@@ -245,23 +456,26 @@ export const GammaDeck = ({ idea, d, onPrompt, onDeck }) => {
   const improve = async () => {
     setBusy("improve"); setError("");
     try {
-      const next = await improveGamma({ idea, data: d, current: text, note });
-      setText(next.gammaPrompt);
-      onPrompt?.(next.gammaPrompt);
+      const next = await improveGamma({ idea, data: d, current: stripLook(text), note });
+      const brief = withLook(next.gammaPrompt, design);
+      setFollow(false);
+      setText(brief);
+      onPrompt?.(brief);
     } catch (e) {
       setError(e.message);
     }
     setBusy("");
   };
   const send = async () => {
-    setBusy("create"); setError("");
+    setBusy("create"); setError(""); setNotice("");
     onPrompt?.(text);
     slidesRef.current.forEach((url) => URL.revokeObjectURL(url));
     slidesRef.current = [];
     setSlides([]);
     try {
-      const created = await createGamma({ prompt: text, title: d.mindmap?.center || "Projet" });
+      const created = await createGamma({ prompt: text, title: d.mindmap?.center || "Projet", look: look.block });
       const next = { ...created, provider: "gamma" };
+      if (created.note) setNotice(created.note);
       setDeck(next);
       onDeck?.(next);
     } catch (e) {
@@ -308,15 +522,65 @@ export const GammaDeck = ({ idea, d, onPrompt, onDeck }) => {
   const waiting = Boolean(deck?.generationId && !deck.ready);
   const embed = deck?.embedUrl || embedFromGamma(deck?.viewUrl || deck?.gammaUrl);
   const openUrl = deck?.viewUrl || deck?.gammaUrl || "";
+  const reset = () => {
+    announce.current = true;
+    persistDesign.current = true;
+    editing.current = false;
+    setFollow(true);
+    setShowPrompt(true);
+    setDesign(freshDeck(d));
+  };
   return (
     <div className="deck">
-      <p className="hint">Gemini écrit le brief de ce projet. Gamma en fait le diaporama, affiché ici. L’amélioration repart du même brief.</p>
+      <p className="hint">Choisis la palette et le style. Le brief se met à jour, puis Gamma 5 compose la dernière version du diaporama.</p>
+      <form className="design-form" onSubmit={(e) => e.preventDefault()}>
+        <div className="swatch-preview" style={{ background: look.palette.colors[0], color: look.palette.colors[3], borderColor: look.palette.colors[2] }}>
+          <strong style={{ color: look.palette.colors[2] }}>{d.mindmap?.center || "Projet"}</strong>
+          <span>{look.style.name} · {look.palette.name}</span>
+        </div>
+        <div>
+          <h3>Palette de couleurs</h3>
+          <div className="palettes" role="listbox" aria-label="Palette de couleurs">
+            {PALETTES.map((item) => (
+              <button type="button" key={item.id} role="option" aria-selected={design.palette === item.id}
+                className={design.palette === item.id ? "palette on" : "palette"}
+                onClick={() => apply({ palette: item.id }, true)}>
+                <span className="dots" aria-hidden="true">
+                  {item.colors.map((color) => <i key={color} style={{ background: color }} />)}
+                </span>
+                {item.name}
+                <em>{item.mode}</em>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <h3>Style du diaporama</h3>
+          <div className="looks" role="listbox" aria-label="Style du diaporama">
+            {DESIGN_STYLES.map((item) => (
+              <button type="button" key={item.id} role="option" aria-selected={design.style === item.id}
+                className={design.style === item.id ? "look on" : "look"}
+                title={`${item.fit} — ${item.care}`}
+                onClick={() => apply({ style: item.id }, true)}>
+                <strong>{item.name}</strong>
+                <span>{item.aspect}</span>
+              </button>
+            ))}
+          </div>
+          <p className="look-note">
+            <b>Bien pour.</b> {look.style.fit}
+            <b>Attention.</b> {look.style.care}
+          </p>
+        </div>
+      </form>
       <div className="v0actions">
-        <button className="go" onClick={send} disabled={Boolean(busy)}>{busy === "create" ? "Envoi…" : "Générer avec Gamma"}</button>
+        <button className="go" onClick={send} disabled={Boolean(busy)}>{busy === "create" ? "Envoi…" : "Générer avec Gamma 5"}</button>
         <button onClick={improve} disabled={Boolean(busy)}>{busy === "improve" ? "Amélioration…" : "Améliorer le prompt"}</button>
         <button onClick={copy}>{copied ? "Copié" : "Copier le prompt"}</button>
-        <button onClick={() => { setText(source); onPrompt?.(source); }}>Réinitialiser</button>
+        <button onClick={reset}>Réinitialiser</button>
       </div>
+      {fresh && <p className="ok">Prompt mis à jour.</p>}
+      {notice && <p className="hint">{notice}</p>}
       <label className="note">Consigne d’amélioration
         <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ex. : ton plus direct, ajoute un slide sur le premier sprint" />
       </label>
@@ -353,10 +617,11 @@ export const GammaDeck = ({ idea, d, onPrompt, onDeck }) => {
           </div>
         </div>
       )}
-      <details className="v0details">
-        <summary>Brief Gamma — modifiable</summary>
-        <textarea className="prompt" value={text} rows={12} onChange={(e) => setText(e.target.value)}
-          onBlur={() => onPrompt?.(text)} aria-label="Brief de présentation" />
+      <details className="v0details" open={showPrompt} onToggle={(e) => setShowPrompt(e.currentTarget.open)}>
+        <summary>Brief Gamma — mis à jour selon tes choix</summary>
+        <textarea className="prompt" value={text} rows={12}
+          onChange={(e) => { editing.current = true; setFollow(false); setText(e.target.value); }}
+          onBlur={() => { editing.current = false; onPrompt?.(text); }} aria-label="Brief de présentation" />
       </details>
     </div>
   );

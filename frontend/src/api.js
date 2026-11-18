@@ -71,8 +71,8 @@ export async function createV0(prompt) {
 export async function improveGamma({ idea, data, current, note }) {
   return request("/api/gamma/prompt", { method: "POST", body: JSON.stringify({ idea, data, current, note }) });
 }
-export async function createGamma({ prompt, title }) {
-  return request("/api/gamma", { method: "POST", body: JSON.stringify({ prompt, title }) });
+export async function createGamma({ prompt, title, look }) {
+  return request("/api/gamma", { method: "POST", body: JSON.stringify({ prompt, title, look }) });
 }
 export async function gammaStatus(id) {
   return request(`/api/gamma/${encodeURIComponent(id)}`);

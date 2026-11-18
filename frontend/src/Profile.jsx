@@ -123,6 +123,7 @@ export default function Profile({ user, onSaved, onLogout, onGuide }) {
         <label htmlFor="gammakey">Clé Gamma {info && <span className={info.gamma?.configured && !clearGamma ? "badge on" : "badge"}>{clearGamma ? "Absente" : keyLabel(info.gamma)}</span>}</label>
         <input id="gammakey" type="password" autoComplete="off" value={gamma} placeholder="Nouvelle clé Gamma"
           onChange={(e) => { setGamma(e.target.value); setClearGamma(false); }} />
+        <button className="textlink inline" type="button" onClick={() => onGuide?.(3)}>Guide de la clé Gamma</button>
         {info?.gamma?.personal && (
           <label className="check"><input type="checkbox" checked={clearGamma} onChange={(e) => setClearGamma(e.target.checked)} /> Effacer la clé actuelle</label>
         )}

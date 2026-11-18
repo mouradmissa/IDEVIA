@@ -1,15 +1,15 @@
 :root{
-  --bg:#070b14;--bg2:#0d1526;--card:rgba(12,22,42,.72);--card-solid:#10192c;
+  --bg:#070b14;--bg2:rgba(255,255,255,.06);--card:rgba(255,255,255,.07);--card-solid:rgba(255,255,255,.1);
   --tx:#e7f2ff;--mut:#93a4c3;--ac:#3ee0ff;--ac2:#8b6cff;--ac3:#ff4d9a;
-  --bd:rgba(126,186,255,.22);--side:rgba(6,10,20,.9);--ok:#3ddeb4;--err:#ff6b8a;
+  --bd:rgba(255,255,255,.16);--side:rgba(255,255,255,.05);--ok:#3ddeb4;--err:#ff6b8a;
   --glow:0 0 32px rgba(62,224,255,.16);--grid:rgba(62,224,255,.07);
   --font:"IBM Plex Sans","Segoe UI",sans-serif;--display:"Space Grotesk","Segoe UI",sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,monospace;
 }
 :root[data-theme="light"]{
-  --bg:#eef3f8;--bg2:#f8fbff;--card:rgba(255,255,255,.82);--card-solid:#fff;
+  --bg:#e9eefc;--bg2:rgba(255,255,255,.5);--card:rgba(255,255,255,.55);--card-solid:rgba(255,255,255,.72);
   --tx:#102033;--mut:#5c6d86;--ac:#0077a8;--ac2:#5b4bdb;--ac3:#c43b78;
-  --bd:rgba(16,40,70,.14);--side:rgba(255,255,255,.92);--ok:#0c8f78;--err:#c42b55;
+  --bd:rgba(255,255,255,.85);--side:rgba(255,255,255,.45);--ok:#0c8f78;--err:#c42b55;
   --glow:0 12px 32px rgba(16,40,70,.08);--grid:rgba(0,80,140,.06);
 }
 *{box-sizing:border-box}
@@ -275,3 +275,173 @@ form{display:flex;flex-direction:column;gap:10px}
   .stages{grid-template-columns:1fr}
   .rowk{grid-template-columns:1fr}
 }
+
+/* ===================== THÈME GLASSMORPHISM ===================== */
+:root{--blur:18px;--sat:140%;--sh:0 20px 50px -24px rgba(0,0,0,.65);--edge:inset 0 1px 0 rgba(255,255,255,.22),inset 0 0 0 1px rgba(255,255,255,.03)}
+:root[data-theme="light"]{--sh:0 20px 50px -24px rgba(40,40,120,.3);--edge:inset 0 1px 0 rgba(255,255,255,.95)}
+/* Fond : lueurs douces animées (remplace la grille) */
+body{background:radial-gradient(900px 480px at 8% -10%,rgba(62,224,255,.16),transparent 55%),radial-gradient(800px 420px at 100% 0%,rgba(139,108,255,.2),transparent 50%),var(--bg) fixed}
+body::before{
+  background:radial-gradient(420px 420px at 12% 20%,rgba(62,224,255,.32),transparent 70%),radial-gradient(480px 480px at 88% 32%,rgba(139,108,255,.36),transparent 70%),radial-gradient(380px 380px at 50% 100%,rgba(255,77,154,.2),transparent 70%);
+  background-size:auto;mask-image:none;-webkit-mask-image:none;filter:blur(24px);animation:aura 26s ease-in-out infinite alternate
+}
+:root[data-theme="light"] body::before{opacity:.75}
+@keyframes aura{to{transform:translate3d(30px,-24px,0) scale(1.08)}}
+/* Panneaux en verre */
+.side,.who,.compose,.field,.panel,.loader,.gate-card,.guide-card,.idcard,.holo,.box,.card,.stage,.chip,.tabs button,.exp button,
+.profilebtn,.theme,.row-actions button,.field > button,.v0actions button,.rowk button,.slab,.paths a,.ext,.switch,.deck-empty,.slide-nav{
+  -webkit-backdrop-filter:blur(var(--blur)) saturate(var(--sat));backdrop-filter:blur(var(--blur)) saturate(var(--sat));
+  box-shadow:var(--sh),var(--edge);
+  background-image:linear-gradient(135deg,rgba(255,255,255,.12),rgba(255,255,255,.02) 55%)
+}
+.side{box-shadow:var(--edge);background-image:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.02))}
+.compose,.panel,.loader,.gate-card,.guide-card{border-radius:26px}
+.idcard,.holo,.box,.card,.stage,.field{border-radius:20px}
+.who,.profilebtn,.theme,.row-actions button,.field > button,.v0actions button,.rowk button{border-radius:14px}
+/* Survol : soulèvement doux (au lieu de l'inclinaison 3D) */
+.holo:hover,.box:hover,.card:hover{transform:translateY(-4px);border-color:rgba(255,255,255,.4)}
+.stage{transition:transform .3s ease,border-color .3s}.stage:hover{transform:translateY(-2px)}
+.stage.on{border-color:rgba(255,255,255,.35);background-image:linear-gradient(120deg,rgba(62,224,255,.24),rgba(139,108,255,.28))}
+.item:hover,.item.cur{-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+/* Boutons : verre coloré avec reflet */
+.go,.new,.tabs button.on,.switch button.on{
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55),0 10px 24px -10px var(--ac);transition:transform .2s,filter .2s
+}
+.go:hover:not(:disabled),.new:hover{transform:translateY(-2px);filter:brightness(1.08)}
+.go:active:not(:disabled),.new:active{transform:scale(.97)}
+.chip:hover,.tabs button:hover,.profilebtn:hover,.theme:hover{background-color:rgba(255,255,255,.12)}
+/* Champs et zones de saisie */
+.field input,.rowk input,.gate-card input,.guide-card input,.note input,.prompt{
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);box-shadow:inset 0 1px 2px rgba(0,0,0,.18)
+}
+:root[data-theme="light"] .field input,:root[data-theme="light"] .rowk input,:root[data-theme="light"] .gate-card input,
+:root[data-theme="light"] .guide-card input,:root[data-theme="light"] .note input,:root[data-theme="light"] .prompt{border-color:rgba(16,40,70,.18)}
+:root[data-theme="light"] .chip,:root[data-theme="light"] .tabs button,:root[data-theme="light"] .exp button{border-color:rgba(16,40,70,.14)}
+/* Fenêtre de guide : fond flouté plus marqué */
+.guide{background:rgba(4,8,22,.5);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+:root[data-theme="light"] .guide{background:rgba(230,236,255,.45)}
+/* Repli si le navigateur ne gère pas le flou */
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  :root{--card:rgba(20,28,52,.94);--card-solid:rgba(24,32,58,.96);--side:rgba(10,16,32,.96);--bg2:rgba(14,22,42,.96)}
+  :root[data-theme="light"]{--card:rgba(255,255,255,.95);--card-solid:#fff;--side:rgba(248,250,255,.97);--bg2:#f1f5fc}
+}
+/* Mobile : flou réduit pour garder de bonnes performances */
+@media (max-width:760px){:root{--blur:12px}}
+
+/* ===================== FINITIONS PAR THÈME (sombre + clair) ===================== */
+:root{--line:rgba(255,255,255,.12);--rim:rgba(255,255,255,.3)}
+:root[data-theme="light"]{--line:rgba(16,40,70,.13);--rim:rgba(255,255,255,.98)}
+/* Reflet sur le bord haut de chaque panneau */
+:is(.side,.who,.compose,.field,.panel,.loader,.gate-card,.guide-card,.idcard,.holo,.box,.card,.stage,.chip,.tabs button,.exp button,.profilebtn,.theme,.row-actions button,.field > button,.v0actions button,.rowk button,.slab,.paths a,.ext,.switch,.deck-empty,.slide-nav){border-top-color:var(--rim);border-left-color:var(--rim)}
+/* Séparateurs lisibles dans les deux thèmes */
+.bar,.steps i{background:var(--line)}.sep{border-top-color:var(--line)}.center{border-bottom-color:var(--line)}.orbit{border-color:var(--line)}
+
+/* ---------- THÈME SOMBRE ---------- */
+:root:not([data-theme="light"]) :is(.field input,.rowk input,.gate-card input,.guide-card input,.note input,.prompt){background:rgba(0,0,0,.24);border-color:rgba(255,255,255,.14)}
+:root:not([data-theme="light"]) .compose textarea::placeholder{color:rgba(147,164,195,.8)}
+
+/* ---------- THÈME CLAIR ---------- */
+:root[data-theme="light"] body{background:radial-gradient(900px 520px at 6% -8%,rgba(34,211,238,.34),transparent 55%),radial-gradient(800px 480px at 100% 0%,rgba(139,108,255,.3),transparent 50%),radial-gradient(700px 500px at 60% 110%,rgba(255,77,154,.2),transparent 55%),var(--bg) fixed}
+:root[data-theme="light"] body::before{opacity:1;background:radial-gradient(420px 420px at 12% 20%,rgba(34,211,238,.5),transparent 70%),radial-gradient(480px 480px at 88% 32%,rgba(139,108,255,.44),transparent 70%),radial-gradient(380px 380px at 50% 100%,rgba(255,77,154,.34),transparent 70%)}
+:root[data-theme="light"] :is(.side,.who,.compose,.field,.panel,.loader,.gate-card,.guide-card,.idcard,.holo,.box,.card,.stage,.chip,.tabs button,.exp button,.profilebtn,.theme,.row-actions button,.field > button,.v0actions button,.rowk button,.slab,.paths a,.ext,.switch,.deck-empty,.slide-nav){
+  box-shadow:0 14px 34px -16px rgba(40,50,120,.34),inset 0 1px 0 #fff,inset 0 0 0 1px rgba(255,255,255,.4);
+  background-image:linear-gradient(135deg,rgba(255,255,255,.6),rgba(255,255,255,.14) 62%)
+}
+:root[data-theme="light"] .side{border-right-color:rgba(255,255,255,.8);box-shadow:inset -1px 0 0 rgba(255,255,255,.6)}
+:root[data-theme="light"] :is(.field input,.rowk input,.gate-card input,.guide-card input,.note input,.prompt){background:rgba(255,255,255,.62);border-color:rgba(16,40,70,.16)}
+:root[data-theme="light"] .stage.on{border-color:rgba(255,255,255,.9);background-image:linear-gradient(120deg,rgba(34,211,238,.3),rgba(139,108,255,.28))}
+:root[data-theme="light"] .slab{background-color:rgba(255,255,255,.55)}
+:root[data-theme="light"] .cube i{background:rgba(255,255,255,.3);border-color:rgba(0,119,168,.7);box-shadow:inset 0 0 24px rgba(0,119,168,.18)}
+:root[data-theme="light"] .scene-grid{background:linear-gradient(rgba(0,119,168,.2) 1px,transparent 1px),linear-gradient(90deg,rgba(0,119,168,.2) 1px,transparent 1px);background-size:42px 42px}
+:root[data-theme="light"] .item:hover,:root[data-theme="light"] .item.cur{box-shadow:inset 0 0 0 1px rgba(255,255,255,.9)}
+:root[data-theme="light"] .google-btn{box-shadow:0 10px 24px -12px rgba(0,0,0,.5)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  :root[data-theme="light"] :is(.side,.compose,.panel,.gate-card,.guide-card,.card,.box,.holo,.stage){background-color:rgba(255,255,255,.96)}
+}
+
+/* ===================== THÈME CLAIR : VERRE RENFORCÉ ===================== */
+:root[data-theme="light"]{
+  --blur:22px;--sat:190%;
+  --card:rgba(255,255,255,.3);--card-solid:rgba(255,255,255,.46);--bg2:rgba(255,255,255,.42);--side:rgba(255,255,255,.34);
+  --bd:rgba(255,255,255,.78);--mut:#3d4c66
+}
+:root[data-theme="light"] body{background:linear-gradient(135deg,#d6e4ff 0%,#ebe0ff 46%,#ffdff0 100%) fixed}
+:root[data-theme="light"] body::before{
+  opacity:1;filter:blur(8px);
+  background:radial-gradient(520px 520px at 10% 18%,rgba(0,190,230,.75),transparent 68%),radial-gradient(560px 560px at 90% 28%,rgba(120,90,255,.68),transparent 68%),radial-gradient(480px 480px at 55% 95%,rgba(255,60,150,.55),transparent 68%)
+}
+/* Formes colorées nettes derrière le contenu : elles rendent le flou visible */
+:root[data-theme="light"] body::after{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(circle 100px at 24% 62%,rgba(255,165,50,.9),transparent 72%),radial-gradient(circle 130px at 80% 72%,rgba(0,205,160,.65),transparent 72%),radial-gradient(circle 80px at 62% 14%,rgba(255,60,150,.75),transparent 72%),radial-gradient(circle 90px at 8% 88%,rgba(90,110,255,.7),transparent 72%);
+  animation:aura 30s ease-in-out infinite alternate-reverse
+}
+:root[data-theme="light"] :is(.side,.who,.compose,.field,.panel,.loader,.gate-card,.guide-card,.idcard,.holo,.box,.card,.stage,.chip,.tabs button,.exp button,.profilebtn,.theme,.row-actions button,.field > button,.v0actions button,.rowk button,.slab,.paths a,.ext,.switch,.deck-empty,.slide-nav){
+  border-color:rgba(255,255,255,.78);
+  box-shadow:0 18px 40px -14px rgba(60,50,150,.42),inset 0 1px 0 #fff,inset 0 -1px 0 rgba(255,255,255,.4),inset 0 0 24px rgba(255,255,255,.4);
+  background-image:linear-gradient(135deg,rgba(255,255,255,.6),rgba(255,255,255,.06) 62%)
+}
+:root[data-theme="light"] :is(.field input,.rowk input,.gate-card input,.guide-card input,.note input,.prompt){background:rgba(255,255,255,.5);border-color:rgba(16,40,70,.2)}
+:root[data-theme="light"] .stage.on{background-image:linear-gradient(120deg,rgba(0,190,230,.34),rgba(120,90,255,.32))}
+:root[data-theme="light"] .guide{background:rgba(210,222,255,.4)}
+@media (max-width:760px){:root[data-theme="light"]{--blur:14px}}
+
+/* ===================== PALETTE DU LOGO : violet #7435F2 + bleu ciel #20D0F0 + marine #0B1226 ===================== */
+:root{
+  --bg:#0a1022;--ac:#20D0F0;--ac2:#7B3FF5;--ac3:#5A2FD1;
+  --glow:0 0 32px rgba(32,208,240,.16);--grid:rgba(32,208,240,.07);
+  --btn:linear-gradient(135deg,#8A52F7,#6A2DE0);--btx:#fff
+}
+:root[data-theme="light"]{
+  --bg:#eef0ff;--ac:#0A7C9E;--ac2:#6A2DE0;--ac3:#4C1FB0;
+  --glow:0 12px 32px rgba(106,45,224,.12);--grid:rgba(10,124,158,.06);
+  --btn:linear-gradient(135deg,#7B3FF5,#5E26D6)
+}
+body{background:radial-gradient(900px 480px at 8% -10%,rgba(32,208,240,.16),transparent 55%),radial-gradient(800px 420px at 100% 0%,rgba(123,63,245,.26),transparent 50%),var(--bg) fixed}
+body::before{background:radial-gradient(420px 420px at 12% 20%,rgba(32,208,240,.3),transparent 70%),radial-gradient(480px 480px at 88% 32%,rgba(123,63,245,.42),transparent 70%),radial-gradient(380px 380px at 50% 100%,rgba(90,47,209,.32),transparent 70%)}
+/* Boutons : violet du logo, texte blanc (contraste conforme) */
+.go,.new,.tabs button.on,.switch button.on{background:var(--btn);color:var(--btx);box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 10px 24px -10px #7B3FF5}
+.exp .go{color:var(--btx)}
+.who img,.who > span,.idcard img,.idcard > span,.avatar{background:var(--btn);color:#fff}
+.orb.a{background:radial-gradient(circle,rgba(32,208,240,.7),transparent 68%)}
+.orb.b{background:radial-gradient(circle,rgba(123,63,245,.65),transparent 68%)}
+.orb.c{background:radial-gradient(circle,rgba(90,47,209,.7),transparent 70%)}
+.stage.on{background-image:linear-gradient(120deg,rgba(32,208,240,.22),rgba(123,63,245,.3))}
+/* Thème clair : uniquement violet et bleu ciel */
+:root[data-theme="light"] body{background:linear-gradient(135deg,#dfe6ff 0%,#ece3ff 50%,#dff6ff 100%) fixed}
+:root[data-theme="light"] body::before{background:radial-gradient(520px 520px at 10% 18%,rgba(32,208,240,.7),transparent 68%),radial-gradient(560px 560px at 90% 28%,rgba(123,63,245,.6),transparent 68%),radial-gradient(480px 480px at 55% 95%,rgba(90,47,209,.42),transparent 68%)}
+:root[data-theme="light"] body::after{background:radial-gradient(circle 100px at 24% 62%,rgba(123,63,245,.65),transparent 72%),radial-gradient(circle 130px at 80% 72%,rgba(32,208,240,.7),transparent 72%),radial-gradient(circle 80px at 62% 14%,rgba(32,208,240,.6),transparent 72%),radial-gradient(circle 90px at 8% 88%,rgba(90,47,209,.6),transparent 72%)}
+:root[data-theme="light"] .stage.on{background-image:linear-gradient(120deg,rgba(32,208,240,.34),rgba(123,63,245,.3))}
+/* Les boutons d’action restent violets, texte blanc, même sur le verre clair */
+:root[data-theme="light"] .v0actions .go{
+  background:var(--btn);background-image:var(--btn);color:#fff;-webkit-text-fill-color:#fff;
+  border-color:transparent;text-align:center;font-weight:700;
+}
+
+/* ===================== CHOIX D’INTERFACE (nom, palette, style) ===================== */
+.design-form{display:flex;flex-direction:column;gap:16px;margin:0 0 16px;text-align:left}
+.design-form h3{margin:0 0 8px;color:var(--mut);font:600 11px var(--mono);letter-spacing:.14em;text-transform:uppercase}
+.design-label{display:flex;flex-direction:column;gap:6px;font-weight:650}
+.design-label input{
+  border:1px solid var(--bd);border-radius:12px;padding:10px 12px;background:var(--bg2);font-weight:450;outline:none;
+}
+.design-label input:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(62,224,255,.15)}
+.swatch-preview{
+  display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid;border-radius:16px;padding:14px 16px;
+}
+.swatch-preview strong{font-family:var(--display);font-size:22px}
+.swatch-preview span{font-size:12px;opacity:.8}
+.palettes,.looks{display:grid;gap:8px}
+.palettes{grid-template-columns:repeat(auto-fill,minmax(148px,1fr))}
+.looks{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+.palette,.look{
+  text-align:left;background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:10px;color:var(--tx);
+}
+.palette.on,.look.on{border-color:var(--ac);box-shadow:var(--glow)}
+.palette em{display:block;margin-top:2px;color:var(--mut);font-style:normal;font-size:11px;font-weight:450}
+.dots{display:flex;gap:4px;margin-bottom:6px}
+.dots i{width:16px;height:16px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)}
+.look strong{display:block;font-size:13px}
+.look span{display:block;margin-top:3px;color:var(--mut);font-size:12px;font-weight:450}
+.look-note{display:flex;flex-wrap:wrap;gap:6px 14px;margin:10px 0 0;color:var(--mut);font-size:13px}
+.look-note b{color:var(--tx);font-weight:650;margin-right:4px}

@@ -291,7 +291,7 @@ export default function App() {
           <Profile
             user={user}
             onLogout={logout}
-            onGuide={() => { setProfile(false); setGuideStep(0); setGuide(true); }}
+            onGuide={(step = 0) => { setProfile(false); setGuideStep(step); setGuide(true); }}
             onSaved={(p) => {
               setKeysReady(Boolean(p.gemini?.configured && p.v0?.configured && p.gamma?.configured));
               if (p.user) setUser(p.user);
@@ -375,7 +375,7 @@ export default function App() {
           <section className="panel">
             <p className="kicker">02 · INTERFACE</p>
             <h2 className="stage-title">Visualiser {data.mindmap?.center || "le projet"}</h2>
-            <V0Prompt idea={idea} d={data} launch={launch} launched={launched} onBusy={setV0Busy} onPrompt={rememberPrompt} onChat={(chat) => {
+            <V0Prompt key={idea} idea={idea} d={data} launch={launch} launched={launched} onBusy={setV0Busy} onPrompt={rememberPrompt} onDesign={(uiDesign) => patchProject({ uiDesign })} onChat={(chat) => {
               patchProject({ v0ChatId: chat.id, v0MessageId: chat.messageId });
             }} />
             {v0Busy && <p className="hint">Génération de l’interface en cours…</p>}
@@ -386,7 +386,7 @@ export default function App() {
           <section className="panel">
             <p className="kicker">03 · PRÉSENTATION</p>
             <h2 className="stage-title">Présenter {data.mindmap?.center || "le projet"}</h2>
-            <GammaDeck idea={idea} d={data} onPrompt={(value) => patchProject({ gammaPrompt: value })} onDeck={(deck) => {
+            <GammaDeck key={idea} idea={idea} d={data} onPrompt={(value) => patchProject({ gammaPrompt: value })} onDesign={(deckDesign) => patchProject({ deckDesign })} onDeck={(deck) => {
               patchProject({
                 ...(deck.generationId ? { gammaGenerationId: deck.generationId } : {}),
                 ...((deck.designId || deck.gammaId) ? { gammaId: deck.designId || deck.gammaId } : {}),

@@ -860,6 +860,7 @@ class GammaPromptReq(BaseModel):
 class GammaCreate(BaseModel):
     prompt: str = Field(min_length=40, max_length=20000)
     title: str = Field(default="Projet", max_length=120)
+    look: str = Field(default="", max_length=1500)
 
 class GammaFileReq(BaseModel):
     generationId: str | None = Field(default=None, max_length=120)
@@ -885,6 +886,14 @@ def project_digest(idea: str, data: dict) -> str:
         f"Fonctionnalités : {features}\nActeurs : {actors}\nUser stories : {stories}"
     )
 
+LOOK_MARK = "\n---\n\nDirection visuelle\n"
+
+def peel_look(prompt: str) -> tuple[str, str]:
+    if LOOK_MARK in prompt:
+        slides, look = prompt.rsplit(LOOK_MARK, 1)
+        return slides.strip(), look.strip()
+    return prompt.strip(), ""
+
 def plain_brief(text: str) -> str:
     text = re.sub(r"^```(?:markdown|text)?|```$", "", text.strip(), flags=re.M).strip()
     text = re.sub(r"[ \t]*---[ \t]*", "\n---\n", text)
@@ -892,6 +901,19 @@ def plain_brief(text: str) -> str:
     if len(text) > 20000:
         text = text[:20000]
     return text
+
+class GammaCredits(Exception):
+    pass
+
+def gamma_http_detail(raw: str) -> str:
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return raw
+    detail = parsed.get("message") or parsed.get("error") or raw
+    if isinstance(detail, dict):
+        detail = detail.get("message") or detail.get("reason") or str(detail)
+    return str(detail or "")
 
 def gamma_call(method: str, path: str, body: dict | None = None, timeout: int = 45, key: str | None = None):
     token = (GAMMA_KEY if key is None else key).strip()
@@ -914,14 +936,9 @@ def gamma_call(method: str, path: str, body: dict | None = None, timeout: int = 
             raw = res.read().decode()
             return json.loads(raw) if raw.strip() else {}
     except urllib.error.HTTPError as e:
-        detail = e.read().decode(errors="replace")[:400]
-        try:
-            parsed = json.loads(detail)
-            detail = parsed.get("message") or parsed.get("error") or detail
-            if isinstance(detail, dict):
-                detail = detail.get("message") or str(detail)
-        except json.JSONDecodeError:
-            pass
+        detail = gamma_http_detail(e.read().decode(errors="replace")[:400])
+        if e.code in (402, 403) and "credit" in detail.lower():
+            raise GammaCredits()
         raise HTTPException(502, f"Erreur Gamma ({e.code}) : {detail or e.reason}")
     except (urllib.error.URLError, TimeoutError, socket.timeout):
         raise HTTPException(502, "Gamma n’a pas répondu à temps. Réessaie.")
@@ -932,17 +949,25 @@ def check_gamma_id(value: str | None, label: str) -> str:
         raise HTTPException(400, f"{label} invalide.")
     return value
 
+def gamma_payload_ids(payload: dict) -> tuple[str, str, str]:
+    gamma = payload.get("gamma") if isinstance(payload.get("gamma"), dict) else {}
+    gamma_id = str(gamma.get("gammaId") or payload.get("gammaId") or "")
+    gamma_url = str(gamma.get("gammaUrl") or payload.get("gammaUrl") or "")
+    export_url = str(payload.get("exportUrl") or "")
+    return gamma_id, gamma_url, export_url
+
 def remember_gamma(generation_id: str, user_id: str, payload: dict | None = None):
     job = GAMMA_JOBS.setdefault(generation_id, {"userId": user_id, "exports": {}})
     if job.get("userId") != user_id:
         raise HTTPException(403, "Cette présentation appartient à un autre compte.")
     if payload:
-        if payload.get("gammaId"):
-            job["gammaId"] = payload["gammaId"]
-        if payload.get("gammaUrl"):
-            job["gammaUrl"] = payload["gammaUrl"]
-        if payload.get("exportUrl"):
-            job["exports"]["pptx"] = payload["exportUrl"]
+        gamma_id, gamma_url, export_url = gamma_payload_ids(payload)
+        if gamma_id:
+            job["gammaId"] = gamma_id
+        if gamma_url:
+            job["gammaUrl"] = gamma_url
+        if export_url.startswith("https://"):
+            job["exports"]["pptx"] = export_url
         job["status"] = payload.get("status") or job.get("status") or "pending"
     return job
 
@@ -968,16 +993,23 @@ def deck_view(provider: str, generation_id: str, status: str, design_id: str = "
         "gammaUrl": view_url if provider == "gamma" else "",
     }
 
+def gamma_status_path(generation_id: str, job: dict | None) -> str:
+    engine = (job or {}).get("engine")
+    if engine == "agent" or generation_id.startswith("gen_"):
+        return f"/agent/generations/{generation_id}"
+    return f"/generations/{generation_id}"
+
 def gamma_view(generation_id: str, payload: dict) -> dict:
     error = payload.get("error") or {}
-    message = error.get("message") if isinstance(error, dict) else ""
+    if isinstance(error, str):
+        message = error
+    elif isinstance(error, dict):
+        message = str(error.get("message") or error.get("reason") or "")
+    else:
+        message = ""
     status = payload.get("status") or "pending"
-    return deck_view(
-        "gamma", generation_id, status,
-        payload.get("gammaId") or "",
-        payload.get("gammaUrl") or "",
-        message or "",
-    )
+    gamma_id, gamma_url, _export_url = gamma_payload_ids(payload)
+    return deck_view("gamma", generation_id, status, gamma_id, gamma_url, message if status == "failed" else "")
 
 def wait_export_url(export_id: str, key: str) -> str:
     export_id = check_gamma_id(export_id, "Export")
@@ -1035,34 +1067,64 @@ def improve_gamma_prompt(req: GammaPromptReq, user: dict = Depends(require_user)
 def create_gamma(req: GammaCreate, user: dict = Depends(require_user)):
     key = active_gamma(user)
     prompt = plain_brief(req.prompt)
-    slides = [part.strip() for part in re.split(r"\n---\n", prompt) if part.strip()]
-    body = {
-        "inputText": prompt,
-        "textMode": "generate",
+    slides_text, peeled = peel_look(prompt)
+    look = (peeled or req.look or "").strip()
+    slides = [part.strip() for part in re.split(r"\n---\n", slides_text) if part.strip()]
+    guidance = "Français. Une idée par carte. Respecte l’ordre des blocs séparés par ---. N’ajoute pas de carte pour expliquer le style."
+    if look:
+        guidance += " " + re.sub(r"\s+", " ", look)[:900]
+    else:
+        guidance += " Style de soutenance, aéré, titres courts."
+    cards = min(max(len(slides), 1), 10)
+    prompt_text = slides_text
+    if look:
+        prompt_text += "\n\nDirection visuelle à appliquer sur toutes les cartes :\n" + look
+    title = req.title.strip() or "Projet"
+    agent_body = {
+        "prompt": prompt_text,
         "format": "presentation",
-        "title": req.title.strip() or "Projet",
-        "exportAs": "pptx",
-        "cardSplit": "inputTextBreaks" if len(slides) > 1 else "auto",
-        "additionalInstructions": "Français. Une idée par carte. Respecte l’ordre des blocs séparés par ---. Style de soutenance, aéré, titres courts.",
-        "textOptions": {
-            "amount": "medium",
-            "tone": "clair et convaincant",
-            "audience": "jury et parties prenantes",
-            "language": "fr",
-        },
-        "imageOptions": {
-            "source": "aiGenerated",
-            "style": "illustration produit moderne, claire, peu de texte",
-        },
-        "cardOptions": {"dimensions": "16x9"},
+        "title": title,
+        "numCards": cards,
+        "quality": "lite",
+        "additionalInstructions": guidance[:5000],
         "sharingOptions": {"externalAccess": "view", "workspaceAccess": "view"},
     }
-    if len(slides) < 2:
-        body["numCards"] = 8
-    created = gamma_call("POST", "/generations", body, timeout=45, key=key) or {}
+    note = ""
+    try:
+        created = gamma_call("POST", "/agent/generations", agent_body, timeout=45, key=key) or {}
+        engine = "agent"
+    except GammaCredits:
+        classic_body = {
+            "inputText": slides_text,
+            "textMode": "preserve",
+            "format": "presentation",
+            "title": title,
+            "numCards": cards,
+            "cardSplit": "inputTextBreaks" if len(slides) > 1 else "auto",
+            "additionalInstructions": guidance[:5000],
+            "textOptions": {"amount": "brief", "tone": "clair", "audience": "jury", "language": "fr"},
+            "imageOptions": {"source": "noImages"},
+            "cardOptions": {"dimensions": "16x9"},
+            "sharingOptions": {"externalAccess": "view", "workspaceAccess": "view"},
+        }
+        try:
+            created = gamma_call("POST", "/generations", classic_body, timeout=45, key=key) or {}
+            engine = "classic"
+            note = "Gamma 5 demandait trop de crédits. La présentation part avec le moteur classique, sans images."
+        except GammaCredits:
+            raise HTTPException(
+                402,
+                "Le compte Gamma n’a plus assez de crédits. Recharge-les sur gamma.app/settings/billing, puis relance la génération.",
+            )
     generation_id = check_gamma_id(created.get("generationId"), "Génération")
-    GAMMA_JOBS[generation_id] = {"userId": user["id"], "exports": {}, "status": "pending", "keyPersonal": bool((user.get("gamma") or "").strip())}
-    return {"generationId": generation_id, "status": "pending", "pending": True, "ready": False}
+    GAMMA_JOBS[generation_id] = {
+        "userId": user["id"],
+        "exports": {},
+        "status": "pending",
+        "engine": engine,
+        "keyPersonal": bool((user.get("gamma") or "").strip()),
+    }
+    return {"generationId": generation_id, "status": "pending", "pending": True, "ready": False, "engine": engine, "note": note}
 
 @app.get("/api/gamma/{generation_id}")
 def gamma_status(generation_id: str, user: dict = Depends(require_user)):
@@ -1071,7 +1133,7 @@ def gamma_status(generation_id: str, user: dict = Depends(require_user)):
     if job and job.get("userId") != user["id"]:
         raise HTTPException(403, "Cette présentation appartient à un autre compte.")
     key = active_gamma(user)
-    payload = gamma_call("GET", f"/generations/{generation_id}", key=key) or {}
+    payload = gamma_call("GET", gamma_status_path(generation_id, job), key=key) or {}
     remember_gamma(generation_id, user["id"], payload)
     view = gamma_view(generation_id, payload)
     if payload.get("status") == "failed" and not view["error"]:
