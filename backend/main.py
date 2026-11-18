@@ -120,6 +120,23 @@ class LoginReq(BaseModel):
 class GoogleReq(BaseModel):
     credential: str = Field(min_length=20, max_length=8000)
 
+class HistoryItemIn(BaseModel):
+    idea: str = Field(default="", max_length=1500)
+    data: dict = Field(default_factory=dict)
+    at: int = 0
+
+class HistoryDraftIn(BaseModel):
+    idea: str = Field(default="", max_length=1500)
+    prompt: str = Field(default="", max_length=6000)
+    stage: str = Field(default="data", max_length=20)
+    tab: str = Field(default="map", max_length=20)
+    data: dict | None = None
+    at: int = 0
+
+class HistorySave(BaseModel):
+    items: list[HistoryItemIn] = Field(default_factory=list)
+    draft: HistoryDraftIn = Field(default_factory=HistoryDraftIn)
+
 def overloaded(err: errors.APIError) -> bool:
     code = getattr(err, "code", None)
     msg = (getattr(err, "message", None) or str(err)).lower()
@@ -308,6 +325,15 @@ def auth_google(req: GoogleReq):
 @app.get("/api/auth/me")
 def auth_me(user: dict = Depends(require_user)):
     return accounts.public_user(user)
+
+@app.get("/api/history")
+def read_history(user: dict = Depends(require_user)):
+    return accounts.get_workspace(user["id"])
+
+@app.put("/api/history")
+def write_history(req: HistorySave, user: dict = Depends(require_user)):
+    items = [item.model_dump() for item in req.items[:10]]
+    return accounts.save_workspace(user["id"], items, req.draft.model_dump())
 
 @app.post("/api/auth/logout")
 def auth_logout(request: Request, user: dict = Depends(require_user)):

@@ -50,6 +50,12 @@ export async function loginGoogle(credential) {
 export async function me() {
   return request("/api/auth/me");
 }
+export async function getHistory() {
+  return request("/api/history");
+}
+export async function saveHistory(body) {
+  return request("/api/history", { method: "PUT", body: JSON.stringify(body) });
+}
 export async function logout() {
   return request("/api/auth/logout", { method: "POST" });
 }

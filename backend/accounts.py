@@ -11,6 +11,11 @@ DATA.mkdir(parents=True, exist_ok=True)
 USERS_PATH = DATA / "users.json"
 SESSIONS_PATH = DATA / "sessions.json"
 CHATS_PATH = DATA / "chats.json"
+HISTORY_PATH = DATA / "history.json"
+MAX_HISTORY = 10
+MAX_BLOB = 500_000
+STAGES = {"data", "ui", "deck"}
+TABS = {"map", "us", "feat", "act", "uml", "db", "bk"}
 LOCK = threading.RLock()
 PBKDF2_ROUNDS = 200_000
 SESSION_TTL = 60 * 60 * 24 * 14
@@ -234,3 +239,70 @@ def chat_record(chat_id: str) -> dict | None:
     with LOCK:
         row = _load(CHATS_PATH).get(chat_id)
         return row if isinstance(row, dict) else None
+
+
+def _json_size(value) -> int:
+    try:
+        return len(json.dumps(value, ensure_ascii=False))
+    except (TypeError, ValueError):
+        return MAX_BLOB + 1
+
+
+def _stamp(value) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _clean_items(items) -> list:
+    cleaned = []
+    if not isinstance(items, list):
+        return cleaned
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        idea = str(item.get("idea") or "").strip()
+        data = item.get("data")
+        if not idea or len(idea) > 1500 or not isinstance(data, dict):
+            continue
+        if _json_size(data) > MAX_BLOB:
+            continue
+        cleaned.append({"idea": idea, "data": data, "at": _stamp(item.get("at"))})
+    cleaned.sort(key=lambda row: row["at"], reverse=True)
+    return cleaned[:MAX_HISTORY]
+
+
+def _clean_draft(draft) -> dict:
+    if not isinstance(draft, dict):
+        draft = {}
+    data = draft.get("data") if isinstance(draft.get("data"), dict) else None
+    if data is not None and _json_size(data) > MAX_BLOB:
+        data = None
+    stage = draft.get("stage") if draft.get("stage") in STAGES else "data"
+    tab = draft.get("tab") if draft.get("tab") in TABS else "map"
+    return {
+        "idea": str(draft.get("idea") or "")[:1500],
+        "prompt": str(draft.get("prompt") or "")[:6000],
+        "stage": stage,
+        "tab": tab,
+        "data": data,
+        "at": _stamp(draft.get("at")),
+    }
+
+
+def get_workspace(user_id: str) -> dict:
+    with LOCK:
+        row = _load(HISTORY_PATH).get(user_id) or {}
+    if not isinstance(row, dict):
+        row = {}
+    return {"items": _clean_items(row.get("items")), "draft": _clean_draft(row.get("draft"))}
+
+
+def save_workspace(user_id: str, items, draft) -> dict:
+    payload = {"items": _clean_items(items), "draft": _clean_draft(draft)}
+    with LOCK:
+        rows = _load(HISTORY_PATH)
+        rows[user_id] = payload
+        _save(HISTORY_PATH, rows)
+    return payload

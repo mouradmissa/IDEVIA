@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { exportZip, generate, getProfile, getToken, logout as logoutApi, me, setToken } from "./api";
+import { exportZip, generate, getHistory, getProfile, getToken, logout as logoutApi, me, saveHistory, setToken } from "./api";
 import Auth from "./Auth";
 import Logo from "./Logo";
 import Onboarding from "./Onboarding";
@@ -28,6 +28,27 @@ const EXAMPLES = [
 const STEPS = ["Analyse de l’idée…", "Construction de la mind map…", "Rédaction des user stories…",
   "Brief de présentation…", "Modélisation UML et base de données…"];
 const KEY = "mindmap-ai-history";
+const DRAFT = "mindmap-ai-draft";
+
+function readJson(key, fallback) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || "");
+    return value ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function mergeHistory(localItems, remoteItems) {
+  const map = new Map();
+  for (const item of [...(remoteItems || []), ...(localItems || [])]) {
+    if (!item || typeof item.idea !== "string" || !item.idea.trim() || !item.data) continue;
+    const prev = map.get(item.idea);
+    if (!prev || (item.at || 0) >= (prev.at || 0)) map.set(item.idea, item);
+  }
+  return [...map.values()].sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 10);
+}
+
 const DEFAULT_PROMPT = `Tu es un architecte logiciel et un Product Owner expérimenté.
 Tu transformes une idée en projet structuré, dans la langue de l'utilisateur.
 Sois précis, concret, et garde des noms courts.`;
@@ -54,8 +75,12 @@ export default function App() {
   const [v0Busy, setV0Busy] = useState(false);
   const [zipping, setZipping] = useState(false);
   const launched = useRef(0);
-  const skipSave = useRef(true);
+  const draftAt = useRef(0);
+  const dirty = useRef(false);
+  const [workspaceReady, setWorkspaceReady] = useState("");
+  const mark = () => { dirty.current = true; };
   const histKey = user ? `${KEY}:${user.id}` : "";
+  const draftKey = user ? `${DRAFT}:${user.id}` : "";
 
   useEffect(() => {
     if (!getToken()) { setBooting(false); return; }
@@ -67,18 +92,66 @@ export default function App() {
     return () => window.removeEventListener("mindmap-logout", out);
   }, []);
   useEffect(() => {
-    skipSave.current = true;
-    if (!histKey) { setHistory([]); return; }
-    if (!localStorage.getItem(histKey) && localStorage.getItem(KEY)) localStorage.setItem(histKey, localStorage.getItem(KEY));
-    try { setHistory(JSON.parse(localStorage.getItem(histKey) || "[]")); }
-    catch { setHistory([]); }
-  }, [histKey]);
+    if (!histKey) {
+      setHistory([]);
+      setWorkspaceReady("");
+      return;
+    }
+    let localItems = readJson(histKey, []);
+    if ((!Array.isArray(localItems) || localItems.length === 0) && localStorage.getItem(KEY)) {
+      localItems = readJson(KEY, []);
+    }
+    const localDraft = readJson(draftKey, null);
+    draftAt.current = localDraft?.at || 0;
+    dirty.current = false;
+    setHistory(Array.isArray(localItems) ? localItems.slice(0, 10) : []);
+    if (localDraft && typeof localDraft === "object") {
+      if (typeof localDraft.idea === "string") setIdea(localDraft.idea);
+      if (typeof localDraft.prompt === "string" && localDraft.prompt) setPrompt(localDraft.prompt);
+      setData(localDraft.data || null);
+      if (localDraft.stage) setStage(localDraft.stage);
+      if (localDraft.tab) setTab(localDraft.tab);
+    }
+    const startedAt = draftAt.current;
+    let alive = true;
+    setWorkspaceReady("");
+    getHistory().then((remote) => {
+      if (!alive) return;
+      const remoteItems = Array.isArray(remote?.items) ? remote.items : [];
+      setHistory((current) => mergeHistory(current, remoteItems));
+      const remoteDraft = remote?.draft;
+      const remoteAt = remoteDraft?.at || 0;
+      if (remoteDraft && remoteAt > startedAt && draftAt.current === startedAt && !dirty.current) {
+        draftAt.current = remoteAt;
+        setIdea(remoteDraft.idea || "");
+        if (remoteDraft.prompt) setPrompt(remoteDraft.prompt);
+        setData(remoteDraft.data || null);
+        setStage(remoteDraft.stage || "data");
+        setTab(remoteDraft.tab || "map");
+        localStorage.setItem(draftKey, JSON.stringify({ ...remoteDraft, at: remoteAt }));
+      }
+    }).catch(() => {}).finally(() => {
+      if (alive) setWorkspaceReady(histKey);
+    });
+    return () => { alive = false; };
+  }, [histKey, draftKey]);
   useEffect(() => {
-    if (!histKey) return;
-    if (skipSave.current) { skipSave.current = false; return; }
-    localStorage.setItem(histKey, JSON.stringify(history.slice(0, 10)));
-  }, [history, histKey]);
-  useEffect(() => localStorage.setItem("mindmap-ai-prompt", prompt), [prompt]);
+    if (!histKey || !draftKey) return;
+    if (!dirty.current && workspaceReady !== histKey) return;
+    const at = dirty.current ? Date.now() : (draftAt.current || Date.now());
+    if (dirty.current) draftAt.current = at;
+    dirty.current = false;
+    const items = history.filter((item) => item?.idea && item?.data).slice(0, 10);
+    const draft = { idea, prompt, stage, tab, data, at };
+    localStorage.setItem(histKey, JSON.stringify(items));
+    localStorage.setItem(draftKey, JSON.stringify(draft));
+    localStorage.setItem("mindmap-ai-prompt", prompt);
+    if (workspaceReady !== histKey) return;
+    const timer = setTimeout(() => {
+      saveHistory({ items, draft }).catch(() => {});
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [history, idea, prompt, stage, tab, data, histKey, draftKey, workspaceReady]);
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme === "light" ? "light" : "dark");
     localStorage.setItem("theme", theme === "light" ? "light" : "dark");
@@ -97,15 +170,16 @@ export default function App() {
   }, [loading]);
 
   const run = async () => {
+    mark();
     setLoading(true); setError("");
     try {
       const d = await generate(idea, prompt.trim());
       setData(d); setStage("data"); setTab("map");
-      setHistory((h) => [{ idea, data: d, at: Date.now() }, ...h.filter((x) => x.idea !== idea)]);
+      setHistory((h) => [{ idea, data: d, at: Date.now() }, ...h.filter((x) => x.idea !== idea)].slice(0, 10));
     } catch (e) { setError(e.message); }
     setLoading(false);
   };
-  const open = (h) => { setProfile(false); setIdea(h.idea); setData(h.data); setStage("data"); setTab("map"); };
+  const open = (h) => { mark(); setProfile(false); setIdea(h.idea); setData(h.data); setStage("data"); setTab("map"); };
   const saveZip = async () => {
     setZipping(true); setError("");
     try {
@@ -120,19 +194,29 @@ export default function App() {
     } catch (e) { setError(e.message); }
     setZipping(false);
   };
-  const remove = (i) => setHistory((h) => h.filter((_, k) => k !== i));
+  const remove = (i) => { mark(); setHistory((h) => h.filter((_, k) => k !== i)); };
   const toggleTheme = () => setTheme((t) => (t === "light" ? "dark" : "light"));
   const logout = async () => {
+    if (getToken()) {
+      try {
+        await saveHistory({
+          items: history.filter((item) => item?.idea && item?.data).slice(0, 10),
+          draft: { idea, prompt, stage, tab, data, at: Date.now() },
+        });
+      } catch { /* conservé en local, renvoyé à la prochaine connexion */ }
+    }
     try { await logoutApi(); } catch { /* session déjà close */ }
     setToken("");
     setUser(null);
     setData(null);
+    setIdea("");
     setProfile(false);
     setGuide(false);
   };
   const rememberPrompt = (value) => {
+    mark();
     setData((cur) => cur ? { ...cur, v0Prompt: value } : cur);
-    setHistory((h) => h.map((item) => item.idea === idea ? { ...item, data: { ...item.data, v0Prompt: value } } : item));
+    setHistory((h) => h.map((item) => item.idea === idea ? { ...item, at: Date.now(), data: { ...item.data, v0Prompt: value } } : item));
   };
 
   if (booting) {
@@ -146,8 +230,9 @@ export default function App() {
     ["Classes", counts.uml], ["Tables", counts.db], ["Tâches", counts.bk],
     ["Points", data.backlog.reduce((a, b) => a + (+b.points || 0), 0)]];
   const patchProject = (partial) => {
+    mark();
     setData((cur) => cur ? { ...cur, ...partial } : cur);
-    setHistory((h) => h.map((item) => item.idea === idea ? { ...item, data: { ...item.data, ...partial } } : item));
+    setHistory((h) => h.map((item) => item.idea === idea ? { ...item, at: Date.now(), data: { ...item.data, ...partial } } : item));
   };
   const view = data && { map: <MindMap map={data.mindmap} />, feat: <Features d={data} />, act: <Actors d={data} />,
     us: <Stories d={data} />, uml: <Uml d={data} />, db: <Db d={data} />, bk: <Backlog d={data} /> }[tab];
@@ -179,7 +264,7 @@ export default function App() {
             {user.email}
           </em>
         </button>
-        <button className="new" onClick={() => { setProfile(false); setData(null); setIdea(""); setStage("data"); }}>＋ Nouveau projet</button>
+        <button className="new" onClick={() => { mark(); setProfile(false); setData(null); setIdea(""); setStage("data"); }}>＋ Nouveau projet</button>
         <div className="hist">
           <h5>Historique</h5>
           {history.length === 0 && <p className="empty">Aucun projet pour le moment.</p>}
@@ -216,7 +301,7 @@ export default function App() {
         {!profile && data && (
           <nav className="stages" aria-label="Étapes du projet">
             {STAGES.map(([id, num, title, text]) => (
-              <button key={id} type="button" className={stage === id ? "stage on" : "stage"} onClick={() => setStage(id)}>
+              <button key={id} type="button" className={stage === id ? "stage on" : "stage"} onClick={() => { mark(); setStage(id); }}>
                 <b>{num}</b>
                 <strong>{title}</strong>
                 <span>{text}</span>
@@ -232,7 +317,7 @@ export default function App() {
             ? "Les données restent la source des deux étapes suivantes : l’interface, puis la présentation."
             : "Décris l’idée. L’atelier produit les données, l’interface, puis un diaporama Gamma à partir du même projet."}</p>
           <div className="compose">
-            <textarea value={idea} onChange={(e) => setIdea(e.target.value)} rows={2}
+            <textarea value={idea} onChange={(e) => { mark(); setIdea(e.target.value); }} rows={2}
               placeholder="Décris ton idée… ex. : une application de livraison de repas"
               onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && idea.trim().length > 4 && !loading) run(); }} />
             <button className="go" onClick={run} disabled={loading || idea.trim().length < 5}>
@@ -244,15 +329,15 @@ export default function App() {
               {promptOpen ? "Masquer le prompt" : "Modifier le prompt"}
             </button>
             {promptOpen && prompt !== DEFAULT_PROMPT && (
-              <button type="button" className="chip" onClick={() => setPrompt(DEFAULT_PROMPT)}>Réinitialiser</button>
+              <button type="button" className="chip" onClick={() => { mark(); setPrompt(DEFAULT_PROMPT); }}>Réinitialiser</button>
             )}
           </div>
           {promptOpen && (
-            <textarea className="prompt editor" value={prompt} rows={5} onChange={(e) => setPrompt(e.target.value)}
+            <textarea className="prompt editor" value={prompt} rows={5} onChange={(e) => { mark(); setPrompt(e.target.value); }}
               aria-label="Prompt de génération" />
           )}
           {!data && <div className="chips">
-            {EXAMPLES.map((e) => <button key={e} className="chip" onClick={() => setIdea(e)}>{e}</button>)}
+            {EXAMPLES.map((e) => <button key={e} className="chip" onClick={() => { mark(); setIdea(e); }}>{e}</button>)}
           </div>}
           {error && <p className="err">⚠️ {error}</p>}
         </section>}
@@ -271,7 +356,7 @@ export default function App() {
             <div className="bar2">
               <nav className="tabs">
                 {TABS.map(([id, ic, l]) => (
-                  <button key={id} className={tab === id ? "on" : ""} onClick={() => setTab(id)}>
+                  <button key={id} className={tab === id ? "on" : ""} onClick={() => { mark(); setTab(id); }}>
                     {ic} {l}{counts[id] != null && <em>{counts[id]}</em>}
                   </button>
                 ))}
